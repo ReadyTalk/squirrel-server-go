@@ -1,18 +1,14 @@
 package main
 
 import (
-    // "io/ioutil"
     "log"
-    // "os"
     "flag"
     "time"
     "regexp"
     "encoding/json"
-    "sync"
     "net/http"
     "net/url"
     "io/ioutil"
-    // "path/filepath"
 )
 
 type VersionInfo struct {
@@ -22,76 +18,60 @@ type VersionInfo struct {
     Data []byte
 }
 
-type VersionCache struct {
-    cache map [string] *VersionInfo
-}
+func GetVersionInfo(url string) VersionInfo {
+    resp, err := http.Get(url)
 
-func NewVersionCache() *VersionCache {
-    return &VersionCache{make(map [string] *VersionInfo)}
-}
-
-func (vc *VersionCache) GetOrLookup(url string) VersionInfo {
-    cached := vc.cache[url]
-    if cached == nil || time.Since(cached.LastUpdateCheckTime) > 30 * time.Second {
-        resp, err := http.Get(url)
-
-        if err != nil {
-            log.Print(err)
-            return VersionInfo {
-                time.Now(),
-                500,
-                "<unknown>",
-                nil,
-            }
-        }
-
-        data, err := ioutil.ReadAll(resp.Body)
-
-        if err != nil {
-            log.Print(err)
-            return VersionInfo {
-                time.Now(),
-                500,
-                "<unknown>",
-                nil,
-            }
-        }
-
-        log.Printf("Got %d from %s", resp.StatusCode, url)
-
-        if resp.StatusCode != 200 {
-            return VersionInfo {
-                time.Now(),
-                resp.StatusCode,
-                "<unknown>",
-                data,
-            }
-        }
-
-        var decoded map[string]interface{}
-
-        if err := json.Unmarshal(data, &decoded); err != nil {
-            log.Print("Couldn't decode ", url, " : ", err)
-            return VersionInfo {
-                time.Now(),
-                resp.StatusCode,
-                "<unknown>",
-                data,
-            }
-        }
-
-        versionInfo := VersionInfo {
+    if err != nil {
+        log.Print(err)
+        return VersionInfo {
             time.Now(),
-            resp.StatusCode,
-            decoded["version"].(string),
-            data,
+            500,
+            "<unknown>",
+            nil,
         }
-
-        cached = &versionInfo
-        vc.cache[url] = cached
     }
 
-    return *cached
+    data, err := ioutil.ReadAll(resp.Body)
+
+    if err != nil {
+        log.Print(err)
+        return VersionInfo {
+            time.Now(),
+            500,
+            "<unknown>",
+            nil,
+        }
+    }
+
+    log.Printf("Got %d from %s", resp.StatusCode, url)
+
+    if resp.StatusCode != 200 {
+        return VersionInfo {
+            time.Now(),
+            resp.StatusCode,
+            "<unknown>",
+            data,
+        }
+    }
+
+    var decoded map[string]interface{}
+
+    if err := json.Unmarshal(data, &decoded); err != nil {
+        log.Print("Couldn't decode ", url, " : ", err)
+        return VersionInfo {
+            time.Now(),
+            resp.StatusCode,
+            "<unknown>",
+            data,
+        }
+    }
+
+    return VersionInfo {
+        time.Now(),
+        resp.StatusCode,
+        decoded["version"].(string),
+        data,
+    }
 }
 
 func main() {
@@ -103,8 +83,6 @@ func main() {
     if err != nil {
         panic(err);
     }
-
-    cache := NewVersionCache()
 
     http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
         query, _ := url.ParseQuery(r.URL.RawQuery)
@@ -123,7 +101,7 @@ func main() {
             return
         }
 
-        versionInfo := cache.GetOrLookup(dest[0])
+        versionInfo := GetVersionInfo(dest[0])
 
         if versionInfo.StatusCode != 200 {
             w.WriteHeader(versionInfo.StatusCode)
