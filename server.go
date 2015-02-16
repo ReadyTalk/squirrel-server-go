@@ -67,7 +67,7 @@ func GetVersionInfo(url string) VersionInfo {
 
 func main() {
     address := flag.String("address", ":3000", "Address to listen on")
-    urlregexp_str := flag.String("regexp", ".*", "Regular expressoin for valid urls to proxy")
+    urlregexp_str := flag.String("regexp", ".*", "Regular expression for valid urls to proxy")
     flag.Parse()
 
     urlregexp, err := regexp.Compile(*urlregexp_str);
