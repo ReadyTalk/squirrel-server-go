@@ -31,6 +31,8 @@ func GetVersionInfo(url string) VersionInfo {
         }
     }
 
+    defer resp.Body.Close()
+
     data, err := ioutil.ReadAll(resp.Body)
 
     if err != nil {
