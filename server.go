@@ -21,14 +21,18 @@ type VersionInfo struct {
 func GetVersionInfo(url string) VersionInfo {
     resp, err := http.Get(url)
 
-    if err != nil {
-        log.Print(err)
+    badVersionInfo := func(status int, data []byte) VersionInfo {
         return VersionInfo {
             time.Now(),
-            500,
+            status,
             "<unknown>",
-            nil,
+            data,
         }
+    }
+
+    if err != nil {
+        log.Print(err)
+        return badVersionInfo(500, nil)
     }
 
     defer resp.Body.Close()
@@ -37,35 +41,20 @@ func GetVersionInfo(url string) VersionInfo {
 
     if err != nil {
         log.Print(err)
-        return VersionInfo {
-            time.Now(),
-            500,
-            "<unknown>",
-            nil,
-        }
+        return badVersionInfo(500, nil)
     }
 
     log.Printf("Got %d from %s", resp.StatusCode, url)
 
     if resp.StatusCode != 200 {
-        return VersionInfo {
-            time.Now(),
-            resp.StatusCode,
-            "<unknown>",
-            data,
-        }
+        return badVersionInfo(resp.StatusCode, data);
     }
 
     var decoded map[string]interface{}
 
     if err := json.Unmarshal(data, &decoded); err != nil {
         log.Print("Couldn't decode ", url, " : ", err)
-        return VersionInfo {
-            time.Now(),
-            resp.StatusCode,
-            "<unknown>",
-            data,
-        }
+        return badVersionInfo(resp.StatusCode, data);
     }
 
     return VersionInfo {
