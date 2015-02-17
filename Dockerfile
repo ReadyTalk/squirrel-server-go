@@ -1,9 +1,3 @@
-FROM golang
-
-ADD . /go/src/github.com/readytalk/squirrel-server-go
-
-RUN go install github.com/readytalk/squirrel-server-go
-
-ENTRYPOINT /go/bin/squirrel-server-go
+FROM golang:1.4.1-onbuild
 
 EXPOSE 3000
