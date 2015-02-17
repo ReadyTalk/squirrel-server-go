@@ -9,12 +9,13 @@ import (
     "net/http"
     "net/url"
     "io/ioutil"
+    "github.com/rcrowley/go-metrics"
 )
 
 type VersionInfo struct {
     LastUpdateCheckTime time.Time
     StatusCode int
-    VersionNumber string
+    VersionNumber *string
     Data []byte
 }
 
@@ -25,7 +26,7 @@ func GetVersionInfo(url string) VersionInfo {
         return VersionInfo {
             time.Now(),
             status,
-            "<unknown>",
+            nil,
             data,
         }
     }
@@ -57,10 +58,12 @@ func GetVersionInfo(url string) VersionInfo {
         return badVersionInfo(resp.StatusCode, data);
     }
 
+    ver := decoded["version"].(string)
+
     return VersionInfo {
         time.Now(),
         resp.StatusCode,
-        decoded["version"].(string),
+        &ver,
         data,
     }
 }
@@ -75,6 +78,15 @@ func main() {
         panic(err);
     }
 
+    registry := metrics.NewRegistry()
+    metrics.RegisterRuntimeMemStats(registry)
+    go metrics.CaptureRuntimeMemStats(registry, 5 * time.Minute)
+
+    forbiddenRequests := metrics.NewRegisteredCounter("forbiddenRequests", registry)
+    errorRequests := metrics.NewRegisteredCounter("errorRequests", registry)
+    upToDateResponses := metrics.NewRegisteredCounter("upToDateResponses", registry)
+    outOfDateResponses := metrics.NewRegisteredCounter("outOfDateResponses", registry)
+
     http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
         query, _ := url.ParseQuery(r.URL.RawQuery)
         queryVersions := query["version"]
@@ -88,13 +100,15 @@ func main() {
         valid := urlregexp.MatchString(dest[0])
 
         if !valid {
+            forbiddenRequests.Inc(1)
             w.WriteHeader(http.StatusForbidden)
             return
         }
 
         versionInfo := GetVersionInfo(dest[0])
 
-        if versionInfo.StatusCode != 200 {
+        if versionInfo.VersionNumber == nil {
+            errorRequests.Inc(1)
             w.WriteHeader(versionInfo.StatusCode)
             if versionInfo.Data != nil {
                 w.Write(versionInfo.Data)
@@ -102,12 +116,18 @@ func main() {
             return
         }
 
-        if len(queryVersions) == 1 && versionInfo.VersionNumber == queryVersions[0] {
+        if len(queryVersions) == 1 && *versionInfo.VersionNumber == queryVersions[0] {
+            upToDateResponses.Inc(1)
             w.WriteHeader(http.StatusNoContent)
             return
         }
 
+        outOfDateResponses.Inc(1)
         w.Write(versionInfo.Data)
+    })
+
+    http.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
+        metrics.WriteJSONOnce(registry, w)
     })
 
     log.Fatal(http.ListenAndServe(*address, nil))
