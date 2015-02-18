@@ -24,6 +24,7 @@ This server is dead simple.  It sends a 204 response as appropriate, but otherwi
 * `version` (optional) - the version of the installed application
 
 The server performs the following steps:
+
 * Requests the `url`
 * Parses the response as json (handling the various error cases)
 * Extracts the `version` field from the json response (which is actually ignored by Squrrel.Mac)
