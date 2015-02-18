@@ -4,7 +4,9 @@ The purpose of this project is to provide the server-side requirements of the [S
 
 Squirrel.Mac is intended to be integrated with an application.  It facilitates the process of checking for, downloading and installing updates.
 
-In particular, the flow goes something like this:
+## Update Process
+
+The flow goes something like this:
 
 * An application initializes Squirrel.Mac, gives it a url to hit to check for updates
 * Squirrel requests this url
@@ -14,12 +16,17 @@ In particular, the flow goes something like this:
 * Squirrel notifies the application an update is available
 * The application presumably asks for user confirmation, then asks Squirrel to apply the update and then restart the application.
 
+## Existing Server
+
 There is an existing [Squirrel.Server](https://github.com/Squirrel/Squirrel.Server), implemented in ruby.  It wasn't sufficient for our case for the following reasons:
 
 * It's inflexible, and only supports hosting updates for a single application
 * It would require us to modify our deployment strategy to include restarting the server
 
+## This Project
+
 This server is dead simple.  It sends a 204 response as appropriate, but otherwise just proxies json files hosted elsewhere  It expects two parameters:
+
 * `url` - the json url to request
 * `version` (optional) - the version of the installed application
 
