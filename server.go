@@ -1,8 +1,8 @@
 package main
 
 import (
+    "os"
     "log"
-    "flag"
     "time"
     "regexp"
     "encoding/json"
@@ -69,11 +69,22 @@ func GetVersionInfo(url string) VersionInfo {
 }
 
 func main() {
-    address := flag.String("address", ":3000", "Address to listen on")
-    urlregexp_str := flag.String("regexp", ".*", "Regular expression for valid urls to proxy")
-    flag.Parse()
+    var address string
+    var urlregexp_str string
 
-    urlregexp, err := regexp.Compile(*urlregexp_str);
+    if len(os.Getenv("SQUIRREL_ADDRESS")) > 0 {
+        address = os.Getenv("SQUIRREL_ADDRESS")
+    } else {
+        address = ":3000"
+    }
+
+    if len(os.Getenv("SQUIRREL_REGEXP")) > 0 {
+        urlregexp_str = os.Getenv("SQUIRREL_REGEXP")
+    } else {
+        urlregexp_str = ".*"
+    }
+
+    urlregexp, err := regexp.Compile(urlregexp_str);
     if err != nil {
         panic(err);
     }
@@ -130,6 +141,8 @@ func main() {
         metrics.WriteJSONOnce(registry, w)
     })
 
-    log.Fatal(http.ListenAndServe(*address, nil))
+    log.Printf("listening on '%s', accepting urls matching '%s'", address, urlregexp_str)
+
+    log.Fatal(http.ListenAndServe(address, nil))
 
 }
