@@ -45,5 +45,5 @@ The server makes to attempt to do any caching, since load should be fairly low.
 
 ```
 docker build -t squirrel-server-go .
-docker run -d -P 3000:3000 squirrel-server-go
+docker run -d -p 3000:3000 squirrel-server-go
 ```
